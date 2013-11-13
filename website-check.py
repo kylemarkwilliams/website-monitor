@@ -10,6 +10,7 @@ Run: python website-check.py port site1 [site2 ... ]
 import web
 import requests
 import sys
+import string
 import thread
 import smtplib
 from email.MIMEMultipart import MIMEMultipart
@@ -49,13 +50,14 @@ def check_servers():
       thread.start_new_thread(server.check_status, ())
       
 class Server:
-  def __init__(self, url):
+  def __init__(self, url, assert_string=""):
     self.url = url
     self.fails = 0
     self.status_code = 0
     self.status = ''
     self.last_checked=datetime.min
     self.notified_fail=False
+    self.assert_string=assert_string
     
   def check_status(self):
     """ Checks the status of the server """
@@ -64,14 +66,19 @@ class Server:
       r = requests.get(self.url, timeout=5)
       self.status_code = r.status_code
       if self.status_code == 200:
-	self.status = 'OK'
-	self.fails = 0
-	self.notified_fail=False
+	if self.assert_string in r.text:
+	  self.status = 'OK'
+	  self.fails = 0
+	  self.notified_fail=False
+	else:
+	  self.status_code = 500
+	  self.fails += 1
+	  self.status = "Assert Failed"
       else:
 	self.fails += 1
 	self.status = 'ERROR'
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-      self.status_code = 503
+      self.status_code = 500
       self.status = str(e)
       self.fails += 1
     
@@ -87,7 +94,8 @@ class Index:
 
   def GET(self):    
     """ The display page """
-    web.header('Content-Type','text/html; charset=utf-8') 
+    web.header('Content-Type','text/html; charset=utf-8')
+    web.header('Content-Language','en') 
     html = """<html><body><h3>Status of Web Servers</h3>"""
     html += "<table border=1><tr><td><b>Server</b></td><td><b>Status</b></td><td><b>Last Checked</b></td></tr>"
     for server in servers:
@@ -110,8 +118,16 @@ class Index:
     
 if __name__ == "__main__":
   
-  for arg in sys.argv[2:]:
-    servers.append(Server(arg))
+  if len(sys.argv) == 3:
+    lines = (line.rstrip('\n') for line in open(sys.argv[2]))
+    for line in lines:
+      url, assert_string = string.split(line,',')
+      print url + " " + assert_string
+      servers.append(Server(url, assert_string))
+  else:
+    for url,assert_string in zip(sys.argv[2::2], sys.argv[3::2]):
+      print url + " " + assert_string
+      servers.append(Server(url, assert_string))
   check_servers()
   timerName = RepeatTimer(poll_interval, check_servers) # Repeatedly check servers
   timerName.start()
