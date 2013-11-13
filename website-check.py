@@ -23,7 +23,7 @@ urls = (
 )
 
 poll_interval = 300 #How often the sites should be polled
-max_fails = 10
+max_fails = 10 #Max number of fails before notification
 servers = []
 app = web.application(urls, globals(), servers)
 
@@ -58,6 +58,7 @@ class Server:
     self.last_checked=datetime.min
     self.notified_fail=False
     self.assert_string=assert_string
+    self.assert_pass=False
     
   def check_status(self):
     """ Checks the status of the server """
@@ -70,10 +71,11 @@ class Server:
 	  self.status = 'OK'
 	  self.fails = 0
 	  self.notified_fail=False
+	  self.assert_pass=True
 	else:
-	  self.status_code = 500
+	  self.status = 'Assert Failed'
 	  self.fails += 1
-	  self.status = "Assert Failed"
+	  self.assert_pass=False
       else:
 	self.fails += 1
 	self.status = 'ERROR'
@@ -97,13 +99,17 @@ class Index:
     web.header('Content-Type','text/html; charset=utf-8')
     web.header('Content-Language','en') 
     html = """<html><body><h3>Status of Web Servers</h3>"""
-    html += "<table border=1><tr><td><b>Server</b></td><td><b>Status</b></td><td><b>Last Checked</b></td></tr>"
+    html += "<table border=1><tr><td><b>Server</b></td><td><b>Status</b></td><td><b>Assert Passed</b></td><td><b>Last Checked</b></td></tr>"
     for server in servers:
       if server.status_code == 200:
-	color = 'green'
+	scolor = 'green'
       else:
-	color = 'red'
-      html += '<tr><td><a href=\'' + server.url + '\'>' + server.url + '</a></td><td><font color=' + color + '>' + str(server.status_code) + ' ' + server.status + '</font></td><td>' + str(server.last_checked) + '</td></tr>'
+	scolor = 'red'
+      if server.assert_pass is True:
+	acolor = 'green'
+      else:
+	acolor = 'red'
+      html += '<tr><td><a href=\'' + server.url + '\'>' + server.url + '</a></td><td><font color=' + scolor + '>' + str(server.status_code) + ' ' + server.status + '</font></td><td><font color=' + acolor + '>' + str(server.assert_pass) + '</font></td><td>' + str(server.last_checked) + '</td></tr>'
     html += """</table>"""
     html += """<form method="POST" action="">
                 <input type="submit" value="Check Status"/>
