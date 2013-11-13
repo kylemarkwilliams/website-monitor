@@ -10,6 +10,10 @@ Run: python website-check.py port site1 [site2 ... ]
 import web
 import requests
 import sys
+import thread
+import smtplib
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEText import MIMEText
 from datetime import datetime
 from repeattimer import RepeatTimer
 
@@ -18,17 +22,32 @@ urls = (
 )
 
 poll_interval = 300 #How often the sites should be polled
-
+max_fails = 10
 servers = []
 app = web.application(urls, globals(), servers)
 
-class ServerCheck(object):
-  @staticmethod
-  def check_servers():
+gmail_user = ''
+gmail_pwd = ''
+
+def mail(to, subject, text):
+   msg = MIMEMultipart()
+   msg['From'] = gmail_user
+   msg['To'] = to
+   msg['Subject'] = subject
+   msg.attach(MIMEText(text))  
+   mailServer = smtplib.SMTP("smtp.gmail.com", 587)
+   mailServer.ehlo()
+   mailServer.starttls()
+   mailServer.ehlo()
+   mailServer.login(gmail_user, gmail_pwd)
+   mailServer.sendmail(gmail_user, to, msg.as_string())   
+   mailServer.close()
+
+def check_servers():
     """ A static method to check the status of all servers """
     for server in servers: 
-      server.check_status()
-
+      thread.start_new_thread(server.check_status, ())
+      
 class Server:
   def __init__(self, url):
     self.url = url
@@ -36,19 +55,33 @@ class Server:
     self.status_code = 0
     self.status = ''
     self.last_checked=datetime.min
+    self.notified_fail=False
     
   def check_status(self):
     """ Checks the status of the server """
     self.last_checked = datetime.now()
     try:
-      r = requests.get(self.url)
+      r = requests.get(self.url, timeout=5)
       self.status_code = r.status_code
       if self.status_code == 200:
 	self.status = 'OK'
-    except requests.exceptions.ConnectionError as e:
+	self.fails = 0
+	self.notified_fail=False
+      else:
+	self.fails += 1
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
       self.status_code = 404
       self.status = str(e)
+      self.fails += 1
+    
+    if self.fails >= max_fails and self.notified_fail is False:
+      print self.notified_fail
+      self.notified_fail = True
+      mail('kwilliams@psu.edu', 'Server down', str("Server at " + self.url + " is down. Last checked at " + str(self.last_checked)))
+      print self.notified_fail
       
+    print str(self.last_checked) + ": " + self.url + " - " + self.status
+    
     return self.status_code, self.last_checked
     
 class Index:
@@ -69,14 +102,15 @@ class Index:
     
   def POST(self):
     """ Manual check """
-    ServerCheck.check_servers()
-    return self.GET()
+    check_servers()
+    raise web.seeother('/')
     
 if __name__ == "__main__":
   
   for arg in sys.argv[2:]:
     servers.append(Server(arg))
-  ServerCheck.check_servers()
-  timerName = RepeatTimer(poll_interval, ServerCheck.check_servers) # Repeatedly check servers
+  check_servers()
+  timerName = RepeatTimer(poll_interval, check_servers) # Repeatedly check servers
   timerName.start()
   app.run()
+  
