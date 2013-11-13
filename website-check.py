@@ -77,7 +77,7 @@ class Server:
     
     if self.fails >= max_fails and self.notified_fail is False:
       self.notified_fail = True
-      mail('kwilliams@psu.edu', 'Server down', str("Server at " + self.url + " is down. Last checked at " + str(self.last_checked)))
+      mail('someone@example.com', 'Server down', str("Server at " + self.url + " is down. Last checked at " + str(self.last_checked)))
       
     print str(self.last_checked) + ": " + self.url + " - " + self.status
     
