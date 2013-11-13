@@ -91,10 +91,14 @@ class Index:
     """ The display page """
     web.header('Content-Type','text/html; charset=utf-8') 
     html = """<html><body><h3>Status of Web Servers</h3>"""
+    html += "<table border=1><tr><td><b>Server</b></td><td><b>Status</b></td><td><b>Last Checked</b></td></tr>"
     for server in servers:
-      html += '<b>Server:</b> ' + server.url + '<br />'
-      html += '<b>Status:</b> ' + str(server.status_code) + ' ' + server.status + '<br />'
-      html += '<b>Last Checked:</b> ' + str(server.last_checked) + '<br /><br />'
+      if server.status_code == 200:
+	color = 'green'
+      else:
+	color = 'red'
+      html += '<tr><td><a href=\'' + server.url + '\'>' + server.url + '</a></td><td><font color=' + color + '>' + str(server.status_code) + ' ' + server.status + '</font></td><td>' + str(server.last_checked) + '</td></tr>'
+    html += """</table>"""
     html += """<form method="POST" action="">
                 <input type="submit" value="Check Status"/>
                 </form>
