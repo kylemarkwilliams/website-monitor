@@ -69,8 +69,9 @@ class Server:
 	self.notified_fail=False
       else:
 	self.fails += 1
+	self.status = 'ERROR'
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-      self.status_code = 404
+      self.status_code = 503
       self.status = str(e)
       self.fails += 1
     
