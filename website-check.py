@@ -4,7 +4,8 @@
 
 A simple Web service to monitor a set of websites
 
-Run: python website-check.py port site1 [site2 ... ]
+Run: python website-check.py port "site1" "assert1" ["site2" "assert2" ... ]
+or: python website-check.py port servers.txt (see README)
 """
 
 import web
