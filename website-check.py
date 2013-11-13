@@ -29,11 +29,12 @@ app = web.application(urls, globals(), servers)
 
 gmail_user = ''
 gmail_pwd = ''
+recipients = ['someone@example.com', 'someone@example.com']
 
 def mail(to, subject, text):
    msg = MIMEMultipart()
    msg['From'] = gmail_user
-   msg['To'] = to
+   msg['To'] = ", ".join(recipients)
    msg['Subject'] = subject
    msg.attach(MIMEText(text))  
    mailServer = smtplib.SMTP("smtp.gmail.com", 587)
@@ -86,7 +87,7 @@ class Server:
     
     if self.fails >= max_fails and self.notified_fail is False:
       self.notified_fail = True
-      mail('someone@example.com', 'Server down', str("Server at " + self.url + " is down. Last checked at " + str(self.last_checked)))
+      mail(recipients, 'Server down', str("This is an automated message. Server at " + self.url + " is down. Last checked at " + str(self.last_checked)))
       
     print str(self.last_checked) + ": " + self.url + " - " + self.status
     
